@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BIDMAS Detective Agency</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Special+Elite&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Special Elite', cursive;
+            background-color: #3d405b;
+            background-image: url("data:image/svg+xml,%3Csvg width='52' height='26' viewBox='0 0 52 26' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%232c2f48' fill-opacity='0.4'%3E%3Cpath d='M10 10c0-2.21-1.79-4-4-4-3.314 0-6-2.686-6-6h2c0 2.21 1.79 4 4 4 3.314 0 6 2.686 6 6 0 2.21 1.79 4 4 4 3.314 0 6 2.686 6 6 0 2.21 1.79 4 4 4v2c-3.314 0-6-2.686-6-6 0-2.21-1.79-4-4-4-3.314 0-6-2.686-6-6zm25.464-1.95l8.486 8.486-1.414 1.414-8.486-8.486 1.414-1.414z' /%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+        .case-file {
+            background-color: #f4f1de;
+            color: #3d405b;
+            border: 2px solid #2c2f48;
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.5);
+            border-radius: 8px;
+            width: 95%;
+            max-width: 800px;
+            padding: 2rem;
+            position: relative;
+        }
+        .case-file::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: 20%;
+            width: 150px;
+            height: 25px;
+            background: #e07a5f;
+            border: 2px solid #2c2f48;
+            border-bottom: none;
+            border-radius: 5px 5px 0 0;
+            transform: rotate(-5deg);
+        }
+        .stamp {
+            position: absolute;
+            top: 15px;
+            right: 25px;
+            font-size: 1.5rem;
+            color: #d62828;
+            border: 3px double #d62828;
+            padding: 5px 10px;
+            transform: rotate(10deg);
+            opacity: 0.8;
+        }
+        .clue-box {
+            background-color: #fdfaf0;
+            border: 1px dashed #81b29a;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            font-size: 2.5rem;
+            min-height: 90px;
+            color: #3d405b;
+            letter-spacing: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .highlight-op {
+            background-color: #f2cc8f;
+            padding: 0 10px;
+            border-radius: 5px;
+        }
+        .btn-choice {
+            background-color: #81b29a;
+            color: #f4f1de;
+            border: 2px solid #3d405b;
+            border-radius: 5px;
+            padding: 0.75rem 1.5rem;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+        }
+        .btn-choice:hover {
+            background-color: #6a9980;
+            transform: translateY(-2px);
+        }
+        .btn-choice:disabled {
+            background-color: #aaa;
+            cursor: not-allowed;
+        }
+        .btn-control {
+            background-color: #e07a5f;
+            color: #f4f1de;
+        }
+        .btn-control:hover {
+            background-color: #d46a4f;
+        }
+        .message {
+            min-height: 40px;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen">
+
+    <div class="case-file text-center">
+        <div class="stamp">CLASSIFIED</div>
+        <h1 class="text-4xl md:text-5xl mb-2">BIDMAS Detective Agency</h1>
+        <p class="mb-6 text-lg text-gray-600">Examine the evidence and solve the case!</p>
+
+        <div class="flex justify-between items-center mb-6 text-xl">
+            <div>Case #: <span id="level">1</span></div>
+            <div>Score: <span id="score">0</span></div>
+        </div>
+
+        <div id="equation-container" class="clue-box mb-6">
+            Ready for your first case...
+        </div>
+
+        <div id="choices-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 min-h-[150px]">
+            <!-- Multiple choice buttons will be injected here -->
+        </div>
+
+        <div id="message-box" class="message text-2xl font-bold mb-6"></div>
+
+        <button id="start-button" class="btn-choice btn-control">Start Investigation</button>
+    </div>
+
+    <script>
+        // --- Game State and Elements ---
+        const levelEl = document.getElementById('level');
+        const scoreEl = document.getElementById('score');
+        const equationContainerEl = document.getElementById('equation-container');
+        const choicesContainerEl = document.getElementById('choices-container');
+        const startButton = document.getElementById('start-button');
+        const messageBoxEl = document.getElementById('message-box');
+
+        let currentLevel = 1;
+        let score = 0;
+        let currentProblem = {};
+
+        // --- Difficulty Progression ---
+        const levels = [
+            { id: 1, structure: 'N + N - N' },      // Lvl 1: Simple Add/Subtract
+            { id: 2, structure: 'N * N + N' },      // Lvl 2: Intro Multiplication
+            { id: 3, structure: 'N + N / N' },      // Lvl 3: Intro Division
+            { id: 4, structure: 'N * N - N / N' },  // Lvl 4: M/D and A/S
+            { id: 5, structure: '( N + N ) * N' },  // Lvl 5: Intro Brackets
+            { id: 6, structure: 'N * ( N - N )' },  // Lvl 6: More Brackets
+            { id: 7, structure: 'N ** 2 + N' },     // Lvl 7: Intro Indices
+            { id: 8, structure: '( N + N ) ** 2' }, // Lvl 8: Brackets and Indices
+            { id: 9, structure: 'N * N ** 2 + N'},  // Lvl 9: All ops
+            { id: 10, structure: '( N * N - N ) / N' } // Lvl 10: Complex
+        ];
+
+        // --- Event Listeners ---
+        startButton.addEventListener('click', startGame);
+
+        function startGame() {
+            currentLevel = 1;
+            score = 0;
+            updateDisplay();
+            generateProblem();
+            startButton.classList.add('hidden');
+        }
+
+        /**
+         * Generates and validates a problem, retrying until a non-negative one is found.
+         */
+        function generateProblem() {
+            const levelData = levels[currentLevel - 1];
+            if (!levelData) {
+                endGame();
+                return;
+            }
+
+            let attempts = 0;
+            while(attempts < 50) { // Failsafe to prevent infinite loops
+                let expression = levelData.structure;
+                
+                // --- Generate a random expression ---
+                expression = expression.replace(/N \/ N/g, () => {
+                    const divisor = Math.floor(Math.random() * 5) + 2;
+                    const dividend = divisor * (Math.floor(Math.random() * 5) + 1);
+                    return `${dividend} / ${divisor}`;
+                });
+                 expression = expression.replace(/N - N/g, () => {
+                    const n1 = Math.floor(Math.random() * 10) + 5;
+                    const n2 = Math.floor(Math.random() * (n1-1)) + 1; // n2 is always less than n1
+                    return `${n1} - ${n2}`;
+                });
+                expression = expression.replace(/\( N \* N - N \) \/ N/g, () => {
+                    const n1 = Math.floor(Math.random() * 5) + 2;
+                    const n2 = Math.floor(Math.random() * 5) + 2;
+                    const n3 = Math.floor(Math.random() * (n1*n2 -1)) + 1; // n3 < n1*n2
+                    const divisor = 2;
+                    const result = (n1*n2-n3);
+                    if (result % divisor !== 0) return `( 10 - 4 ) / 2`; // Return a default valid case
+                    return `( ${n1} * ${n2} - ${n3} ) / ${divisor}`;
+                });
+                expression = expression.replace(/N/g, () => Math.floor(Math.random() * 10) + 1);
+
+                const parts = expression.split(' ').filter(p => p);
+
+                // --- Validate the expression ---
+                if (isValidExpression(parts)) {
+                    currentProblem = {
+                        parts: [...parts],
+                        step: findNextStep([...parts]),
+                    };
+                    renderProblem();
+                    showMessage("Find the next clue...", "#3d405b");
+                    return; // Found a valid problem, exit function
+                }
+                attempts++;
+            }
+            console.error("Failed to generate a valid problem. Restarting level.");
+            generateProblem(); // Try again if we failed
+        }
+
+        /**
+         * Checks if an expression will result in negative numbers at any step.
+         * @param {string[]} parts - The expression as an array of parts.
+         * @returns {boolean} - True if the expression is valid.
+         */
+        function isValidExpression(parts) {
+            let tempParts = [...parts];
+            while (tempParts.length > 1) {
+                const step = findNextStep(tempParts);
+                if (!step || step.result < 0) {
+                    return false; // Invalid if a step is bad or results in a negative
+                }
+                tempParts.splice(step.startIndex, step.count, step.result);
+            }
+            return tempParts[0] >= 0;
+        }
+        
+        function findNextStep(parts) {
+            if (parts.length <= 1) return null;
+
+            let openParen = -1, closeParen = -1;
+            for (let i = 0; i < parts.length; i++) {
+                if (parts[i] === '(') openParen = i;
+                if (parts[i] === ')' && i > openParen) {
+                    closeParen = i;
+                    break; 
+                }
+            }
+            
+            const scopeStart = (openParen !== -1) ? openParen + 1 : 0;
+            const scopeEnd = (openParen !== -1) ? closeParen : parts.length;
+
+            const opPriority = ['**', '*', '/', '+', '-'];
+            for (const op of opPriority) {
+                for (let i = scopeStart; i < scopeEnd; i++) {
+                    if (parts[i] === op) {
+                        const left = parseFloat(parts[i - 1]);
+                        const right = parseFloat(parts[i + 1]);
+                        if (isNaN(left) || isNaN(right)) continue; // Skip if parts aren't numbers
+                        
+                        const result = eval(`${left} ${op} ${right}`);
+                        
+                        let startIndex = i - 1;
+                        let count = 3;
+
+                        if (openParen !== -1 && scopeStart === startIndex && scopeEnd === startIndex + count) {
+                            startIndex = openParen;
+                            count = closeParen - openParen + 1;
+                        }
+                        return { op, result, startIndex, count };
+                    }
+                }
+            }
+            return null;
+        }
+
+        function renderProblem() {
+            const step = currentProblem.step;
+            if (!step) return; 
+            
+            let html = '';
+            const parts = currentProblem.parts;
+
+            for (let i = 0; i < parts.length; i++) {
+                const part = parts[i];
+                const isHighlighted = (i >= step.startIndex && i < step.startIndex + step.count);
+
+                let elementHtml = '';
+                if (part === '**') {
+                    const exponent = parts[i + 1];
+                    elementHtml = `<sup>${exponent}</sup> `;
+                    i++;
+                } else {
+                    elementHtml = `<span>${part}</span> `;
+                }
+
+                if (isHighlighted) {
+                    html += `<span class="highlight-op">${elementHtml.trim()}</span> `;
+                } else {
+                    html += elementHtml;
+                }
+            }
+            
+            equationContainerEl.innerHTML = html;
+            renderChoices(step.result);
+        }
+
+        function renderChoices(correctAnswer) {
+            choicesContainerEl.innerHTML = '';
+            const choices = generateChoices(correctAnswer);
+            choices.forEach(choice => {
+                const button = document.createElement('button');
+                button.textContent = choice;
+                button.className = 'btn-choice';
+                button.addEventListener('click', () => handleAnswerClick(choice, correctAnswer));
+                choicesContainerEl.appendChild(button);
+            });
+        }
+
+        function generateChoices(correctAnswer) {
+            let choices = new Set([correctAnswer]);
+            while (choices.size < 4) {
+                const randomOp = Math.random() > 0.5 ? 1 : -1;
+                const randomOffset = (Math.floor(Math.random() * 5) + 1) * randomOp;
+                let wrongAnswer = correctAnswer + randomOffset;
+                if(wrongAnswer >= 0) choices.add(wrongAnswer);
+            }
+            return Array.from(choices).sort(() => Math.random() - 0.5);
+        }
+
+        function handleAnswerClick(selectedAnswer, correctAnswer) {
+            document.querySelectorAll('.btn-choice').forEach(b => b.disabled = true);
+
+            if (selectedAnswer === correctAnswer) {
+                score += 10;
+                
+                const step = currentProblem.step;
+                currentProblem.parts.splice(step.startIndex, step.count, step.result);
+                const nextStep = findNextStep(currentProblem.parts);
+
+                if (!nextStep) {
+                    showMessage("Case Solved!", "#81b29a");
+                    score += 25;
+                    equationContainerEl.textContent = correctAnswer;
+                    setTimeout(nextLevel, 2000);
+                } else {
+                    showMessage("Good work, Detective!", "#81b29a");
+                    currentProblem.step = nextStep;
+                    setTimeout(() => renderProblem(), 500);
+                }
+            } else {
+                showMessage("That's not right. Check your leads.", "#e07a5f");
+                score = Math.max(0, score - 5);
+                setTimeout(() => {
+                    document.querySelectorAll('.btn-choice').forEach(b => b.disabled = false);
+                }, 1000);
+            }
+            updateDisplay();
+        }
+
+        function nextLevel() {
+            currentLevel++;
+            generateProblem();
+            updateDisplay();
+        }
+
+        function updateDisplay() {
+            levelEl.textContent = currentLevel;
+            scoreEl.textContent = score;
+        }
+
+        function showMessage(text, color) {
+            messageBoxEl.textContent = text;
+            messageBoxEl.style.color = color;
+        }
+
+        function endGame() {
+            equationContainerEl.textContent = "All Cases Closed!";
+            choicesContainerEl.innerHTML = '';
+            startButton.classList.remove('hidden');
+            startButton.textContent = "Start a New Investigation?";
+            showMessage(`Final Score: ${score}! You're a master detective!`, "#3d405b");
+        }
+    </script>
+</body>
+</html>
